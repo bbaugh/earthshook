@@ -1,0 +1,26 @@
+OVERVIEW
+earthshook.py will push a geotagged twitter update to a given Twitter account
+It will write a log of its tweets to $HOME/log/quakealert.log
+
+REQUIREMENTS
+* httplib2 - python package to handle http sending
+* tweepy - python package interface to Twitter API
+* Twitter API access - Allows posting from tweepy
+* Bit.ly API access - Allows shortening URLs
+* procmail - allows one to push email to a python script
+
+NECESSARY FILES/DIRECTORY
+$HOME/.twapi - contains the credentials for the Twitter API
+              (consumer_key,consumer_secret) one per line
+$HOME/.twusr - contains the credentials for the Twitter user
+               (key, secret) space separated
+$HOME/.bitlyapi - contains the credentials for the Bit.ly API
+                  (user, key) space separated
+$HOME/.cache - directory which will store information from Bit.ly API
+
+PROCMAIL SETUP:
+# Handles earthquake notifications
+:0b
+* ^From.*ens@usgs\.gov
+| /pathto/earthshook.py
+
