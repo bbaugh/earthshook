@@ -159,7 +159,7 @@ def formate(pinfo):
   if pinfo.mag!=None:
     rv='%s earthquake '%pinfo.mag
   if pinfo.utctime!=None:
-    rv='%soccured at %s'%(rv,pinfo.utctime)
+    rv='%soccurred at %s'%(rv,pinfo.utctime)
   if pinfo.nearby!=None:
     rv='%s, %s'%(rv,pinfo.nearby)
   return rv
@@ -219,7 +219,7 @@ auth.set_access_token(key, secret)
 api = tweepy.API(auth)
 fmttw = fmttw.strip().replace('  ',' ').decode('unicode_escape')
 if len(fmttw)>140:
-  fmttw = fmttw.replace(' earthquake occured',' quake')
+  fmttw = fmttw.replace(' earthquake occurred',' quake')
 if fmttw!=None and fmttw!='' and fmttw!='.' and pio.lat is not None and len(fmttw)<140:
   stt = api.update_status(status=fmttw,lat=float(pio.lat),long=float(pio.long))
   f.write('%s\n'%toascii(fmttw))
