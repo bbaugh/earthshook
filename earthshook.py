@@ -6,14 +6,40 @@
 #  Created by Brian Baughman on 1/23/10.
 #  Copyright (c) 2010 Brian Baughman. All rights reserved.
 #
-import re, sys, os
+try:
+  import re, sys, time
+  from os import environ, _exit
+except:
+  print 'Failed to load base modules'
+  sys.exit(-1)
+
+try:
+  from bitly import shorten
+  import tweepy
+  # Home directory
+  homedir = environ['HOME']
+  curtime = time.strftime('%Y-%m-%d %H:%M:%S')
+# stop if something looks wrong
+except:
+  print 'Failed to load modules'
+  _exit(-1)
+
 # Define input files and output log file
-homedir = os.getenv('HOME')
-logfile = '%s/log/quakealert.log'%homedir #'%s/tmp/tmp.log'%homedir #
-cachedir = '%s/.cache'%homedir
-twapi = '%s/.twapi'%homedir
-twusr = '%s/.twusr'%homedir
-bitlyapi = '%s/.bitlyapi'%homedir
+try:
+  quakelog = environ['QUAKELOG']
+except:
+  quakelog = '%s/logs/quakealert.log'%homedir
+
+try:
+  twapi = environ['TWAPI']
+except:
+  twapi = '%s/.twapi'%homedir
+
+try:
+  twusr = environ['TWUSR']
+except:
+  twusr = '%s/.twusr'%homedir
+
 # Define some regular expressions
 anglere = '\([0-9\.\-]+ degrees\)'
 milesre = '\([0-9\.\-]+ miles\)'
@@ -23,9 +49,22 @@ linktag = 'For subsequent updates, maps, and technical information, see:'
 linkbase = 'http://earthquake.usgs.gov'
 
 try:
-  f = open(logfile, 'a')
+  log = open(quakelog, 'a')
 except:
-  sys.exit(-5)
+  log = sys.stdout
+  log.write('%s: Cannot open log file: %s\n'%(curtime,quakelog))
+################################################################################
+# Useful functions
+################################################################################
+def easy_exit(eval):
+  '''
+    Function to clean up before exiting and exiting itself
+  '''
+  try:
+    log.close()
+  except:
+    _exit(eval)
+  _exit(eval)
 
 try:
   twapif = open(twapi,'r')
@@ -34,8 +73,8 @@ try:
   consumer_secret = consumer_secret.strip()
   twapif.close()
 except:
-  f.write('Failed to load twitter API info!\n')
-  sys.exit(-2)
+  log.write('Failed to load twitter API info!\n')
+  easy_exit(-2)
 
 try:
   twusrf = open(twusr,'r')
@@ -45,19 +84,8 @@ try:
   secret = secret.strip()
   twusrf.close()
 except:
-  f.write('Failed to load twitter user info!\n')
-  sys.exit(-3)
-
-try:
-  bitlyapif = open(bitlyapi,'r')
-  busr,bapi = bitlyapif.readlines()
-  busr = busr.strip()
-  bapi = bapi.strip()
-  bitlyapif.close()
-except:
-  f.write('Failed to load j.mp API info!\n')
-  sys.exit(-4)
-
+  log.write('Failed to load twitter user info!\n')
+  easy_exit(-3)
 
 def clean(lines):
   rv = []
@@ -164,14 +192,6 @@ def formate(pinfo):
     rv='%s, %s'%(rv,pinfo.nearby)
   return rv
 
-def getbitly(content):
-  lines = content.split('\n')
-  for l in lines:
-    mtc = re.findall(bitlyre,l)
-    if len(mtc)==1:
-      return mtc[0]
-  return None
-
 def toascii(s):
   rv = []
   for c in s:
@@ -183,51 +203,41 @@ def toascii(s):
   rv = ''.join(rv)
   return rv
 
-#try:
 # Read in data from standard input
 ogdata = sys.stdin.readlines()
-##############################
-# if testing use following
-#df = homedir+'/tmp/txtfmt.eml'
-#ogdataf = open(df,'r')
-#ogdata = ogdataf.readlines()
-#ogdataf.close()
-##############################
+
 sdata = clean(ogdata)
 lk = getlink(sdata)
 tb = gettbody(sdata)
 pio = prepinfo(tb)
 fmttw = formate(pio)
-# Load twitter, j.mp stuff
-import httplib2
-import tweepy
+
 if lk!=None:
-  burl = 'http://api.j.mp/shorten?version=2.0.1&longUrl=%s&login=%s&apiKey=%s'%(lk,busr,bapi)
-  h = httplib2.Http(cachedir)
-  resp, ct = h.request(burl, "GET",headers={'cache-control':'no-cache'})
-  surl = getbitly(ct)
-  if surl!=None:
-    fmttw='%s. %s'%(fmttw,surl)
-  else:
-    f.write('Failed to get j.mp info\n')
+  shrtlk = shorten(lk)
+  fmttw='%s. %s'%(fmttw,shrtlk)
 else:
-  f.write('Failed to find link.n')
-# Create twitter authentication handler
-auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
-auth.set_access_token(key, secret)
-# Create interface to twitter API
-api = tweepy.API(auth)
+  log.write('Failed to find link.\n')
+
 fmttw = fmttw.strip().replace('  ',' ').decode('unicode_escape')
+
+try:
+  # Create twitter authentication handler
+  auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+  auth.set_access_token(key, secret)
+  # Create interface to twitter API
+  api = tweepy.API(auth)
+except:
+  log.write('Failed TAuth: %s\n'%fmttw)
+
 if len(fmttw)>140:
   fmttw = fmttw.replace(' earthquake occurred',' quake')
 if fmttw!=None and fmttw!='' and fmttw!='.' and pio.lat is not None and len(fmttw)<140:
-  stt = api.update_status(status=fmttw,lat=float(pio.lat),long=float(pio.long))
-  f.write('%s\n'%toascii(fmttw))
+  try:
+    stt = api.update_status(status=fmttw,lat=float(pio.lat),long=float(pio.long))
+    log.write('%s\n'%toascii(fmttw))
+  except:
+    log.write('Failed Send: %s\n'%fmttw)
 else:
-  f.write('Failed!\n')
-f.close()
-sys.exit(1)
-#except:
-#  f.write('Failed with exception!\n')
-#  f.close()
-#  sys.exit(-1)
+  log.write('Failed!\n')
+
+easy_exit(0)
