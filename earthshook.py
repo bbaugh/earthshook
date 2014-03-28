@@ -8,6 +8,8 @@
 #
 try:
   import re, sys, time
+  from time import sleep
+
   from os import environ, _exit
 except:
   print 'Failed to load base modules'
@@ -53,9 +55,11 @@ try:
 except:
   log = sys.stdout
   log.write('%s: Cannot open log file: %s\n'%(curtime,quakelog))
+
 ################################################################################
 # Useful functions
 ################################################################################
+
 def easy_exit(eval):
   '''
     Function to clean up before exiting and exiting itself
@@ -203,6 +207,8 @@ def toascii(s):
   rv = ''.join(rv)
   return rv
 
+################################################################################
+
 # Read in data from standard input
 ogdata = sys.stdin.readlines()
 
@@ -231,13 +237,16 @@ except:
 
 if len(fmttw)>140:
   fmttw = fmttw.replace(' earthquake occurred',' quake')
-if fmttw!=None and fmttw!='' and fmttw!='.' and pio.lat is not None and len(fmttw)<140:
+
+for i in xrange(5):
   try:
     stt = api.update_status(status=fmttw,lat=float(pio.lat),long=float(pio.long))
     log.write('%s\n'%toascii(fmttw))
+    easy_exit(0)
   except:
-    log.write('Failed Send: %s\n'%fmttw)
-else:
-  log.write('Failed!\n')
+    sleep(5)
 
+log.write('Failed Send: %s\n'%fmttw)
 easy_exit(0)
+
+
